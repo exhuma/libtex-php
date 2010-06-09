@@ -243,6 +243,14 @@ class HtmlTexer {
    }
 
    /**
+    * SUP tags
+    */
+   function process_sup( $node ){
+      return "$^{" . $this->latex_escape( trim($node->nodeValue) ) . "}$";
+   }
+
+
+   /**
     * PRE tags
     */
    function process_pre( $node ){
@@ -433,9 +441,28 @@ class HtmlTexer {
          $row = $rows->item($i);
          $cells = array();
          for ( $j = 0; $j < $row->childNodes->length; $j++ ){
-            if ( $row->childNodes->item($j) instanceof DOMElement ) {
-               $cells[] = $this->process_container( $row->childNodes->item($j) );
+            $current_cell = $row->childNodes->item($j);
+            if ( $current_cell instanceof DOMElement ) {
+
+               $prefix = "";
+               $suffix = "";
+
+               $colspan = $current_cell->getAttribute("colspan");
+               if ( $colspan !== "" ){
+                  $prefix .= "\\multicolumn{{$colspan}}{|c|}{";
+                  $suffix .= "}";
+               }
+
+               if ( strtoupper($current_cell->tagName) == "TH" ) {
+                  $prefix .= "\\textbf{";
+                  $suffix .= "}";
+               }
+
+               $cells[] = $prefix . $this->process_container( $current_cell ) . $suffix;
             }
+         }
+         if ( $i > 0 ){
+            $output .= "\\hline\n";
          }
          $output .= implode( " & ", $cells ) . "\\\\\n";
       }
@@ -460,7 +487,9 @@ class HtmlTexer {
     * Forced line Breaks
     */
    function process_br( $node ){
-      return "\\\\";
+      if ( trim($node->previousSibling->textContent) !== "") {
+         return "\\\\";
+      }
    }
 
    /**
